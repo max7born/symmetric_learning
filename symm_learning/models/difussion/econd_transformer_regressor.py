@@ -42,6 +42,7 @@ class eCondTransformerRegressor(GenCondRegressor):
         causal_attn: bool = False,
         num_cond_layers: int = 0,
         init_scheme: str = "xavier_uniform",
+        norm_module: str = "rmsnorm",
     ) -> None:
         out_rep = out_rep or in_rep
         super().__init__(in_rep.size, out_rep.size, cond_rep.size)
@@ -54,6 +55,7 @@ class eCondTransformerRegressor(GenCondRegressor):
         self.num_layers = num_layers
         self.embedding_dim = embedding_dim
         self.dropout = torch.nn.Dropout(p_drop_emb)
+        self.norm_module = norm_module
 
         G = in_rep.group
         assert cond_rep.group == G == out_rep.group, "All representations must belong to the same group"
@@ -81,7 +83,7 @@ class eCondTransformerRegressor(GenCondRegressor):
                 activation="gelu",
                 batch_first=True,
                 norm_first=True,  # important for stability.
-                norm_module="rmsnorm",  # important for stability.
+                norm_module=self.norm_module,  # important for stability.
                 init_scheme=None,
             )
             logger.debug(
@@ -108,7 +110,7 @@ class eCondTransformerRegressor(GenCondRegressor):
             activation="gelu",
             batch_first=True,
             norm_first=True,  # important for stability.
-            norm_module="rmsnorm",  # important for stability.
+            norm_module=self.norm_module,  # important for stability.
             init_scheme=None,
         )
         logger.debug(f"Initializing {num_layers} layers of eTransformerDecoderLayer")
@@ -133,7 +135,11 @@ class eCondTransformerRegressor(GenCondRegressor):
             self.self_att_mask = None
             self.cross_att_mask = None
 
-        self.layer_norm = symm_learning.nn.eLayerNorm(self.embedding_rep, eps=1e-5, equiv_affine=True, bias=True)
+        if self.norm_module == "layernorm":
+            self.layer_norm = symm_learning.nn.eLayerNorm(self.embedding_rep, eps=1e-5, equiv_affine=True, bias=True)
+        elif self.norm_module == "rmsnorm":
+            self.layer_norm = symm_learning.nn.eRMSNorm(self.embedding_rep, eps=1e-5, equiv_affine=True)
+
         self.head = symm_learning.nn.eLinear(self.embedding_rep, out_rep, bias=True, init_scheme=None)
 
         self.reset_parameters(scheme=init_scheme)
@@ -177,7 +183,7 @@ class eCondTransformerRegressor(GenCondRegressor):
         decay = set()
         no_decay = set()
         whitelist_weight_modules = (symm_learning.nn.eLinear, symm_learning.nn.eMultiheadAttention)
-        blacklist_weight_modules = (symm_learning.nn.eLayerNorm, torch.nn.Embedding)
+        blacklist_weight_modules = (symm_learning.nn.eLayerNorm, symm_learning.nn.eRMSNorm, torch.nn.Embedding)
 
         for module_name, m in self.named_modules():
             for param_name, p in m.named_parameters():
