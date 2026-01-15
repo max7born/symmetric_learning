@@ -43,7 +43,6 @@ class eCondTransformerRegressor(GenCondRegressor):
         num_cond_layers: int = 0,
         norm_module: Literal["layernorm", "rmsnorm"] = "rmsnorm",
         init_scheme: str = "xavier_uniform",
-        norm_module: str = "rmsnorm",
     ) -> None:
         out_rep = out_rep or in_rep
         super().__init__(in_rep.size, out_rep.size, cond_rep.size)
