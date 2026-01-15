@@ -78,16 +78,16 @@ class eTransformerEncoderLayer(torch.nn.Module):
 
         if norm_module == "layernorm":
             norm_cls = eLayerNorm
-            norm_kwargs = {"bias": bias} | factory_kwargs
+            norm_kwargs = dict(eps=layer_norm_eps, equiv_affine=True, bias=bias, **factory_kwargs)
             raise ValueError("eLayerNorm is numerically unstable. Use eRMSNorm instead for now.")
         elif norm_module == "rmsnorm":
             norm_cls = eRMSNorm
-            norm_kwargs = factory_kwargs
+            norm_kwargs = dict(eps=layer_norm_eps, equiv_affine=True, **factory_kwargs)
         else:
             raise ValueError(f"norm_module must be 'layernorm' or 'rmsnorm', got {norm_module}")
 
-        self.norm1 = norm_cls(self.in_rep, eps=layer_norm_eps, equiv_affine=True, **norm_kwargs)
-        self.norm2 = norm_cls(self.out_rep, eps=layer_norm_eps, equiv_affine=True, **norm_kwargs)
+        self.norm1 = norm_cls(self.in_rep, **norm_kwargs)
+        self.norm2 = norm_cls(self.out_rep, **norm_kwargs)
 
         self.norm_first = norm_first
         self.batch_first = batch_first
@@ -237,15 +237,16 @@ class eTransformerDecoderLayer(torch.nn.Module):
         self.norm_first = norm_first
         if norm_module == "layernorm":
             norm_cls = eLayerNorm
-            norm_kwargs = {"bias": bias} | factory_kwargs
+            norm_kwargs = dict(eps=layer_norm_eps, equiv_affine=True, bias=bias, **factory_kwargs)
         elif norm_module == "rmsnorm":
             norm_cls = eRMSNorm
-            norm_kwargs = factory_kwargs
+            norm_kwargs = dict(eps=layer_norm_eps, equiv_affine=True, **factory_kwargs)
         else:
             raise ValueError(f"norm_module must be 'layernorm' or 'rmsnorm', got {norm_module}")
-        self.norm1 = norm_cls(self.in_rep, eps=layer_norm_eps, equiv_affine=True, **norm_kwargs)
-        self.norm2 = norm_cls(self.in_rep, eps=layer_norm_eps, equiv_affine=True, **norm_kwargs)
-        self.norm3 = norm_cls(self.out_rep, eps=layer_norm_eps, equiv_affine=True, **norm_kwargs)
+        
+        self.norm1 = norm_cls(self.in_rep, **norm_kwargs)
+        self.norm2 = norm_cls(self.in_rep, **norm_kwargs)
+        self.norm3 = norm_cls(self.out_rep, **norm_kwargs)
 
         self.dropout1 = torch.nn.Dropout(dropout)
         self.dropout2 = torch.nn.Dropout(dropout)
