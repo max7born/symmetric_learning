@@ -1,22 +1,28 @@
-from .activations import Mish  # noqa: D104
-from .affine import eAffine
-from .conv import GSpace1D, eConv1D, eConvTranspose1D
+"""Symmetric Learning - Neural Network Modules"""
+
+from .activation import eMultiheadAttention
+from .conv import eConv1d, eConvTranspose1d
 from .disentangled import Change2DisentangledBasis
 from .distributions import EquivMultivariateNormal, _EquivMultivariateNormal
-from .normalization import DataNorm, eBatchNorm1d, eDataNorm
+from .linear import eAffine, eLinear
+from .normalization import eBatchNorm1d, eLayerNorm, eRMSNorm
 from .pooling import IrrepSubspaceNormPooling
+from .running_stats import EMAStats, eEMAStats
 
 __all__ = [
     "Change2DisentangledBasis",
     "EquivMultivariateNormal",
     "_EquivMultivariateNormal",
     "IrrepSubspaceNormPooling",
-    "eConv1D",
-    "eConvTranspose1D",
-    "GSpace1D",
-    "Mish",
+    "eMultiheadAttention",
     "eBatchNorm1d",
     "eAffine",
-    "DataNorm",
-    "eDataNorm",
+    "eConv1d",
+    "eConvTranspose1d",
+    "EMAStats",
+    "eEMAStats",
+    "eLinear",
+    "eAffine",
+    "eLayerNorm",
+    "eRMSNorm",
 ]
