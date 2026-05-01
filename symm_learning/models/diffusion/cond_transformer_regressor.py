@@ -170,7 +170,7 @@ class CondTransformerRegressor(GenCondRegressor):
                 dropout=p_drop_attn,
                 activation="gelu",
                 batch_first=True,
-                norm_first=False,
+                norm_first=True,
             )
             self.encoder = torch.nn.TransformerEncoder(encoder_layer=encoder_layer, num_layers=num_cond_layers)
         else:
@@ -188,7 +188,7 @@ class CondTransformerRegressor(GenCondRegressor):
             dropout=p_drop_attn,
             activation="gelu",
             batch_first=True,
-            norm_first=False,  # important for stability
+            norm_first=True,  # important for stability
         )
         self.decoder = torch.nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=num_layers)
 
