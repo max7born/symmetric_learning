@@ -70,6 +70,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/generated/
 
 # PyBuilder
 .pybuilder/
@@ -178,3 +179,4 @@ cython_debug/
 
 .github/chatmodes/
 .rsyncignore
+*AGENTS.md

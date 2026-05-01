@@ -1,7 +1,25 @@
 models
 ======
 
+.. module:: symm_learning.models
+
 A collection of equivariant neural network architectures.
 
-.. automodule:: symm_learning.models
-   :members:
+
+.. currentmodule:: symm_learning.models
+
+
+.. autosummary::
+   :toctree: generated/
+   :recursive:
+
+   eMLP
+   iMLP
+   MLP
+   eTimeCNNEncoder
+   TimeCNNEncoder
+   eTransformerEncoderLayer
+   eTransformerDecoderLayer
+   GenCondRegressor
+   eCondTransformerRegressor
+   CondTransformerRegressor
