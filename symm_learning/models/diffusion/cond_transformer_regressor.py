@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from time import perf_counter
-from typing import Optional, Tuple, Union
+from typing import Literal
 
 import torch
 
@@ -112,6 +112,7 @@ class CondTransformerRegressor(GenCondRegressor):
         p_drop_attn (:class:`float`): Dropout applied inside attention blocks.
         causal_attn (:class:`bool`): Whether to use causal attention in self-attention and cross-attention layers.
         num_cond_layers (:class:`int`): Number of encoder layers dedicated to conditioning tokens.
+        norm_module: Normalization layer type (``'layernorm'`` or ``'rmsnorm'``).
     """
 
     def __init__(
@@ -128,6 +129,7 @@ class CondTransformerRegressor(GenCondRegressor):
         p_drop_attn: float = 0.1,
         causal_attn: bool = False,
         num_cond_layers: int = 0,
+        norm_module: Literal["layernorm", "rmsnorm"] = "rmsnorm",
     ) -> None:
         super().__init__(in_dim=in_dim, out_dim=out_dim, cond_dim=cond_dim)
 
@@ -150,8 +152,18 @@ class CondTransformerRegressor(GenCondRegressor):
         self.encoder = None
         self.decoder = None
 
+        if norm_module == 'layernorm':
+            transformer_encoder_layer_cls = torch.nn.TransformerEncoderLayer
+            transformer_decoder_layer_cls = torch.nn.TransformerDecoderLayer
+        elif norm_module == 'rmsnorm':
+            from symm_learning.models.transformer.transformer_rms_norm_layers import RMSNormTransformerEncoderLayer, RMSNormTransformerDecoderLayer
+            transformer_encoder_layer_cls = RMSNormTransformerEncoderLayer
+            transformer_decoder_layer_cls = RMSNormTransformerDecoderLayer
+        else:
+            raise NotImplementedError(f"CondTransformerRegressor only supports norm_modules 'layernorm' and 'rmsnorm', not {norm_module}")
+
         if num_cond_layers > 0:
-            encoder_layer = torch.nn.TransformerEncoderLayer(
+            encoder_layer = transformer_encoder_layer_cls (
                 d_model=embedding_dim,
                 dim_feedforward=4 * embedding_dim,
                 nhead=num_attention_heads,
@@ -169,7 +181,7 @@ class CondTransformerRegressor(GenCondRegressor):
             )
 
         # decoder
-        decoder_layer = torch.nn.TransformerDecoderLayer(
+        decoder_layer = transformer_decoder_layer_cls(
             d_model=embedding_dim,
             nhead=num_attention_heads,
             dim_feedforward=4 * embedding_dim,
@@ -200,7 +212,7 @@ class CondTransformerRegressor(GenCondRegressor):
             self.cross_att_mask = None
 
         # Decoder head
-        self.layer_norm = torch.nn.LayerNorm(embedding_dim)
+        self.final_norm = torch.nn.LayerNorm(embedding_dim) if norm_module == 'layernorm' else torch.nn.RMSNorm(embedding_dim) if norm_module == 'rmsnorm' else None
         self.head = torch.nn.Linear(embedding_dim, out_dim)
 
         # init
@@ -238,6 +250,8 @@ class CondTransformerRegressor(GenCondRegressor):
         elif isinstance(module, torch.nn.LayerNorm):
             torch.nn.init.zeros_(module.bias)
             torch.nn.init.ones_(module.weight)
+        elif isinstance(module, torch.nn.RMSNorm):
+            torch.nn.init.ones_(module.weight)
         elif isinstance(module, CondTransformerRegressor):
             torch.nn.init.normal_(module.pos_emb, mean=0.0, std=0.02)
             if module.cond_emb is not None:
@@ -260,7 +274,7 @@ class CondTransformerRegressor(GenCondRegressor):
         decay = set()
         no_decay = set()
         whitelist_weight_modules = (torch.nn.Linear, torch.nn.MultiheadAttention)
-        blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.Embedding)
+        blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.RMSNorm, torch.nn.Embedding)
         for mn, m in self.named_modules():
             for pn, p in m.named_parameters():
                 fpn = "%s.%s" % (mn, pn) if mn else pn  # full param name
@@ -362,7 +376,7 @@ class CondTransformerRegressor(GenCondRegressor):
         )  # (B,Tx,n_emb)
 
         # 5. Regression head projecting to output dimension.
-        out_tokens = self.layer_norm(out_tokens)
+        out_tokens = self.final_norm(out_tokens)
         out = self.head(out_tokens)  # (B,Tx, out_dim := d_v)
         return out
 

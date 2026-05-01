@@ -178,10 +178,10 @@ class eCondTransformerRegressor(eModule, GenCondRegressor):
             self.cross_att_mask = None
 
         if norm_module == "layernorm":
-            self.layer_norm = symm_learning.nn.eLayerNorm(self.embedding_rep, eps=1e-5, equiv_affine=True, bias=True)
+            self.final_norm = symm_learning.nn.eLayerNorm(self.embedding_rep, eps=1e-5, equiv_affine=True, bias=True)
             raise ValueError("eLayerNorm is numerically unstable. Use eRMSNorm instead for now.")
         else:  # rmsnorm
-            self.layer_norm = symm_learning.nn.eRMSNorm(self.embedding_rep, eps=1e-5, equiv_affine=True)
+            self.final_norm = symm_learning.nn.eRMSNorm(self.embedding_rep, eps=1e-5, equiv_affine=True)
         self.head = symm_learning.nn.eLinear(self.embedding_rep, out_rep, bias=True, init_scheme=None)
 
         self.reset_parameters(scheme=init_scheme)
@@ -200,7 +200,7 @@ class eCondTransformerRegressor(eModule, GenCondRegressor):
         self.cond_emb.reset_parameters(scheme=scheme)
         self.head.reset_parameters(scheme=scheme)
         # Initialize final layer norm and head.
-        self.layer_norm.reset_parameters()
+        self.final_norm.reset_parameters()
         # Initalize conditional encoder layers.
         if isinstance(self.encoder, torch.nn.TransformerEncoder):
             for i, layer in enumerate(self.encoder.layers, start=1):
@@ -225,7 +225,7 @@ class eCondTransformerRegressor(eModule, GenCondRegressor):
         decay = set()
         no_decay = set()
         whitelist_weight_modules = (symm_learning.nn.eLinear, symm_learning.nn.eMultiheadAttention)
-        blacklist_weight_modules = (symm_learning.nn.eLayerNorm, torch.nn.Embedding)
+        blacklist_weight_modules = (symm_learning.nn.eLayerNorm, symm_learning.nn.eRMSNorm, torch.nn.Embedding)
 
         for module_name, m in self.named_modules():
             for param_name, p in m.named_parameters():
@@ -315,7 +315,7 @@ class eCondTransformerRegressor(eModule, GenCondRegressor):
             tgt=input_tokens, memory=cond_tokens, tgt_mask=self.self_att_mask, memory_mask=self.cross_att_mask
         )  # (B, Tx, D)
         # 5. Regression head projecting to output dimension.
-        out_tokens = self.layer_norm(out_tokens)
+        out_tokens = self.final_norm(out_tokens)
         out = self.head(out_tokens)  # (B, Tx, out_dim)
         return out
 
