@@ -8,6 +8,7 @@ from typing import Literal
 import torch
 
 from symm_learning.models.diffusion.cond_unet1d import SinusoidalPosEmb
+from symm_learning.models.transformer.transformer_custom_norm_layers import CustomTransformerEncoderLayer, CustomTransformerDecoderLayer
 
 logger = logging.getLogger(__name__)
 
@@ -152,18 +153,8 @@ class CondTransformerRegressor(GenCondRegressor):
         self.encoder = None
         self.decoder = None
 
-        if norm_module == 'layernorm':
-            transformer_encoder_layer_cls = torch.nn.TransformerEncoderLayer
-            transformer_decoder_layer_cls = torch.nn.TransformerDecoderLayer
-        elif norm_module == 'rmsnorm':
-            from symm_learning.models.transformer.transformer_rms_norm_layers import RMSNormTransformerEncoderLayer, RMSNormTransformerDecoderLayer
-            transformer_encoder_layer_cls = RMSNormTransformerEncoderLayer
-            transformer_decoder_layer_cls = RMSNormTransformerDecoderLayer
-        else:
-            raise NotImplementedError(f"CondTransformerRegressor only supports norm_modules 'layernorm' and 'rmsnorm', not {norm_module}")
-
         if num_cond_layers > 0:
-            encoder_layer = transformer_encoder_layer_cls (
+            encoder_layer = CustomTransformerEncoderLayer(
                 d_model=embedding_dim,
                 dim_feedforward=4 * embedding_dim,
                 nhead=num_attention_heads,
@@ -171,6 +162,7 @@ class CondTransformerRegressor(GenCondRegressor):
                 activation="gelu",
                 batch_first=True,
                 norm_first=True,
+                norm_module=norm_module,
             )
             self.encoder = torch.nn.TransformerEncoder(encoder_layer=encoder_layer, num_layers=num_cond_layers)
         else:
@@ -181,7 +173,7 @@ class CondTransformerRegressor(GenCondRegressor):
             )
 
         # decoder
-        decoder_layer = transformer_decoder_layer_cls(
+        decoder_layer = CustomTransformerDecoderLayer(
             d_model=embedding_dim,
             nhead=num_attention_heads,
             dim_feedforward=4 * embedding_dim,
@@ -189,6 +181,7 @@ class CondTransformerRegressor(GenCondRegressor):
             activation="gelu",
             batch_first=True,
             norm_first=True,  # important for stability
+            norm_module=norm_module,
         )
         self.decoder = torch.nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=num_layers)
 
