@@ -18,8 +18,3 @@ A collection of equivariant neural network architectures.
    MLP
    eTimeCNNEncoder
    TimeCNNEncoder
-   eTransformerEncoderLayer
-   eTransformerDecoderLayer
-   GenCondRegressor
-   eCondTransformerRegressor
-   CondTransformerRegressor

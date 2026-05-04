@@ -19,6 +19,7 @@ from symm_learning.nn.normalization import eLayerNorm, eRMSNorm
 from symm_learning.nn.parametrizations import CommutingConstraint, InvariantConstraint
 from symm_learning.representation_theory import direct_sum
 from symm_learning.utils import check_equivariance
+from symm_learning.models.transformer.transformer_custom_norm_layers import CustomTransformerEncoderLayer
 
 GROUP_BUILDERS: Dict[str, Callable[[int], object]] = {
     "cyclic": CyclicGroup,
@@ -331,13 +332,20 @@ if __name__ == "__main__":
     rep = direct_sum([G.regular_representation] * cfg.regular_copies)
     dim = rep.size
 
-    t_encoder_norm_first = torch.nn.TransformerEncoderLayer(
-        d_model=rep.size, nhead=1, dim_feedforward=rep.size * 4, batch_first=True, norm_first=True
+    t_encoder_norm_first_layernorm = CustomTransformerEncoderLayer(
+        d_model=rep.size, nhead=1, dim_feedforward=rep.size * 4, batch_first=True, norm_first=True, norm_module="layernorm"
     )
-    t_encoder_norm_last = torch.nn.TransformerEncoderLayer(
-        d_model=rep.size, nhead=1, dim_feedforward=rep.size * 4, batch_first=True, norm_first=False
+    t_encoder_norm_last_layernorm = CustomTransformerEncoderLayer(
+        d_model=rep.size, nhead=1, dim_feedforward=rep.size * 4, batch_first=True, norm_first=False, norm_module="layernorm"
+    )
+    t_encoder_norm_first_rmsnorm = CustomTransformerEncoderLayer(
+        d_model=rep.size, nhead=1, dim_feedforward=rep.size * 4, batch_first=True, norm_first=True, norm_module="rmsnorm"
+    )
+    t_encoder_norm_last_rmsnorm = CustomTransformerEncoderLayer(
+        d_model=rep.size, nhead=1, dim_feedforward=rep.size * 4, batch_first=True, norm_first=False, norm_module="rmsnorm"
     )
 
+    # Note: for running these tests, one has to manually disable the valueerror when creating an etransformer with layernorm
     et_encoder_norm_first_layernorm = eTransformerEncoderLayer(
         in_rep=rep, nhead=1, dim_feedforward=rep.size * 4, batch_first=True, norm_first=True, norm_module="layernorm"
     )
@@ -362,8 +370,10 @@ if __name__ == "__main__":
 
     # _________________RUN EXPERIMENT ______________________________________________
     modules = {
-        "TransformerEncoder (norm first)": t_encoder_norm_first,
-        "TransformerEncoder (norm last)": t_encoder_norm_last,
+        "TransformerEncoder (LayerNorm, norm first)": t_encoder_norm_first_layernorm,
+        "TransformerEncoder (LayerNorm, norm last)": t_encoder_norm_last_layernorm,
+        "TransformerEncoder (RMSNorm, norm first)": t_encoder_norm_first_rmsnorm,
+        "TransformerEncoder (RMSNorm, norm last)": t_encoder_norm_last_rmsnorm,
         "eTransformerEncoder (LayerNorm, norm first)": et_encoder_norm_first_layernorm,
         "eTransformerEncoder (LayerNorm, norm last)": et_encoder_norm_last_layernorm,
         "eTransformerEncoder (RMSNorm, norm first)": et_encoder_norm_first_rmsnorm,
