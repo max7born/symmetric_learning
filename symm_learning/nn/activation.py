@@ -141,7 +141,6 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
     from escnn.group import CyclicGroup, DihedralGroup
 
-    from symm_learning.models.transformer.etransformer import eTransformerEncoderLayer
     from symm_learning.utils import check_equivariance
 
     G = CyclicGroup(10)
