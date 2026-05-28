@@ -552,6 +552,9 @@ class GroupHomomorphismBasis(torch.nn.Module):
             elif scheme in {"kaiming_uniform", "he_uniform"}:
                 bound = (6.0 / fan_in) ** 0.5
                 theta = torch.empty(isotypic_param_shape, device=device, dtype=dtype).uniform_(-bound, bound)
+            elif scheme.startswith("normal_"):
+                std = float(scheme[len("normal_"):])
+                theta = torch.empty(isotypic_param_shape, device=device, dtype=dtype).normal_(0.0, std)
             else:
                 raise ValueError(f"Unknown scheme: {scheme}")
 
